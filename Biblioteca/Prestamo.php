@@ -20,6 +20,7 @@ class Prestamo {
     public function getFechaDevolucion() { return $this->fechaDevolucion; }
     public function estaDevuelto() { return $this->devuelto; }
 
+    //funcion devolver
     public function devolver() {
         $this->devuelto = true;
         $this->fechaDevolucion = date('Y-m-d');

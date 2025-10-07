@@ -1,16 +1,20 @@
 <?php
 require_once 'Libro.php';
 require_once 'Biblioteca.php';
+require_once 'Prestamo.php';
 session_start();
 
+// Crear la biblioteca en sesión si no existe
 if (!isset($_SESSION['biblioteca'])) {
     $_SESSION['biblioteca'] = new Biblioteca();
 }
 $biblioteca = $_SESSION['biblioteca'];
 
+// Procesar formularios
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $accion = $_POST['accion'];
 
+    // Agregar libro
     if ($accion === 'agregar') {
         $titulo = $_POST['titulo'];
         $autor = $_POST['autor'];
@@ -19,26 +23,43 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $biblioteca->agregarLibro($nuevoLibro);
     }
 
+    // Eliminar libro (y sus préstamos relacionados)
     if ($accion === 'eliminar') {
         $biblioteca->eliminarLibro($_POST['id']);
     }
 
+    // Editar libro
     if ($accion === 'editar') {
         $_SESSION['editarId'] = $_POST['id'];
     }
 
+    // Guardar edición de libro
     if ($accion === 'guardarEdicion') {
         $biblioteca->editarLibro($_POST['id'], $_POST['titulo'], $_POST['autor'], $_POST['categoria']);
         unset($_SESSION['editarId']);
     }
 
+    // Prestar libro
     if ($accion === 'prestar') {
         echo "<p class='mensaje'>".$biblioteca->prestarLibro($_POST['id'])."</p>";
     }
+
+    // Devolver libro
+    if ($accion === 'devolver') {
+        $idLibro = $_POST['id'];
+        foreach ($biblioteca->getPrestamos() as $prestamo) {
+            if ($prestamo->getLibro()->getId() == $idLibro && !$prestamo->estaDevuelto()) {
+                echo "<p class='mensaje'>" . $biblioteca->devolverLibro($prestamo->getId()) . "</p>";
+                break;
+            }
+        }
+    }
 }
+
 
 $_SESSION['biblioteca'] = $biblioteca;
 
+// Buscar libros por título, autor o categoría
 $resultadosBusqueda = [];
 if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['accion']) && $_GET['accion'] === 'buscar') {
     $termino = $_GET['busqueda'];
@@ -60,6 +81,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['accion']) && $_GET['acc
     <div class="container">
         <h1>📚 Sistema de Biblioteca</h1>
 
+        <!-- Formulario para agregar libro -->
         <section>
             <h2>Agregar Libro</h2>
             <form method="POST">
@@ -70,6 +92,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['accion']) && $_GET['acc
             </form>
         </section>
 
+        <!-- Formulario para buscar libros -->
         <section>
             <h2>Buscar Libro</h2>
             <form method="GET">
@@ -78,6 +101,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['accion']) && $_GET['acc
             </form>
         </section>
 
+        <!-- Mostrar resultados de búsqueda -->
         <?php if (!empty($resultadosBusqueda)): ?>
             <h3>Resultados de la búsqueda</h3>
             <table>
@@ -93,6 +117,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['accion']) && $_GET['acc
             </table>
         <?php endif; ?>
 
+        <!-- Formulario para editar libro -->
         <?php
         if (isset($_SESSION['editarId'])) {
             $idEditar = $_SESSION['editarId'];
@@ -108,6 +133,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['accion']) && $_GET['acc
                     </form>
         <?php } } } ?>
 
+        <!-- Mostrar libros registrados -->
         <h2>Libros Registrados</h2>
         <table>
             <tr><th>ID</th><th>Título</th><th>Autor</th><th>Categoría</th><th>Estado</th><th>Acciones</th></tr>
@@ -119,6 +145,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['accion']) && $_GET['acc
                     <td><?= $libro->getCategoria() ?></td>
                     <td><?= $libro->estaPrestado() ? 'Prestado' : 'Disponible' ?></td>
                     <td>
+                   
                         <form method="POST" style="display:inline;">
                             <input type="hidden" name="id" value="<?= $libro->getId() ?>">
                             <button type="submit" name="accion" value="eliminar">Eliminar</button>
@@ -132,12 +159,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['accion']) && $_GET['acc
                                 <input type="hidden" name="id" value="<?= $libro->getId() ?>">
                                 <button type="submit" name="accion" value="prestar">Prestar</button>
                             </form>
+                        <?php else: ?>
+                            <form method="POST" style="display:inline;">
+                                <input type="hidden" name="id" value="<?= $libro->getId() ?>">
+                                <button type="submit" name="accion" value="devolver">Devolver</button>
+                            </form>
                         <?php endif; ?>
                     </td>
                 </tr>
             <?php endforeach; ?>
         </table>
 
+        <!-- Mostrar préstamos registrados -->
         <h2>Préstamos Registrados</h2>
         <table>
             <tr><th>ID Préstamo</th><th>Título</th><th>Fecha Préstamo</th><th>Fecha Devolución</th><th>Estado</th></tr>
